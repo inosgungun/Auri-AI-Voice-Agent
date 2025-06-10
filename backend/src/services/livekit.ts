@@ -56,8 +56,6 @@ export class LivekitAgent {
   }
 
   private async getAudioStream(roomName: string, participantId: string): Promise<Buffer> {
-    // Implement Livekit audio stream capture
-    // This is a simplified placeholder
     return Buffer.from('');
   }
 }

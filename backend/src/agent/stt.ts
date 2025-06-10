@@ -1,29 +1,36 @@
 // Speech-To-Text (STT) service for converting audio to text
 
 import { createClient } from '@deepgram/sdk';
+import { DeepgramTranscriptResult } from '../types';
 
 export class STTService {
-    private deepgram: ReturnType<typeof createClient>;
+  private deepgram: ReturnType<typeof createClient>;
 
-    constructor (apiKey: string) {
-        this.deepgram = createClient(apiKey);
+  constructor(apiKey: string) {
+    this.deepgram = createClient(apiKey);
+  }
+
+  async listen(audioBuffer: Buffer) {
+  const { result, error } = await this.deepgram.listen.prerecorded.transcribeFile(
+    audioBuffer,
+    {
+      model: 'nova-3',
+      language: 'en',
+      smart_format: true,
+    },
+  );
+
+    if (error) {
+      console.error('Transcription error:', error);
+      return null;
     }
 
-    async transcribe(audio: Buffer): Promise<string> {
-        const response = await this.deepgram.listen.prerecorded.transcribeFile(
-            audio,
-            {
-                punctuate: true,
-                model: 'nova-2'
-            }
-        );
-     
-        const result = response as any;
-        if (!result.results?.channels?.[0]?.alternatives?.[0]?.transcript) {
-            throw new Error('Failed to transcribe audio');
-        }
-        
-        return result.results.channels[0].alternatives[0].transcript;
-    }
+    const data = result as unknown as DeepgramTranscriptResult;
+
+    const transcript = (result as any).results?.[0]?.alternatives?.[0]?.transcript || '';
+
+    return transcript;
+  }
 }
+
 

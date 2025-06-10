@@ -1,139 +1,131 @@
 'use client';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { signUp } from '@/lib/auth';
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: '',
-    phone: '',
+    phone: ''
   });
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { signup } = useAuth();
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    setError(null); // Clear error when user makes changes
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     setLoading(true);
-    setError(null);
 
     try {
-      // Basic validation
-      if (!formData.username || !formData.email || !formData.password) {
-        throw new Error('Please fill in all required fields');
+      const { user, error } = await signUp(formData.email, formData.password);
+      
+      if (error) {
+        setError(error);
+        return;
       }
 
-      if (formData.password.length < 6) {
-        throw new Error('Password must be at least 6 characters long');
+      if (user) {
+        router.push('/dashboard');
       }
-
-      await signup(formData);
-      router.push('/dashboard');
-    } catch (error) {
-      console.error('Signup failed:', error);
-      setError(error instanceof Error ? error.message : 'An error occurred during signup');
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during sign up');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Create a new account</h2>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Or{' '}
-            <Link href="/login" className="font-medium text-purple-600 hover:text-purple-500 dark:text-purple-400">
-              sign in to your existing account
-            </Link>
-          </p>
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
+            Create your account
+          </h2>
         </div>
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/50 text-red-600 dark:text-red-400 p-3 rounded-md text-sm">
-            {error}
-          </div>
-        )}
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="username" className="block text-sm font-medium text-gray-300">
                 Username
               </label>
-              <Input
+              <input
                 id="username"
                 name="username"
                 type="text"
                 required
+                className="mt-1 block w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500"
                 value={formData.username}
                 onChange={handleChange}
-                className="mt-1"
-                disabled={loading}
               />
             </div>
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300">
                 Email address
               </label>
-              <Input
+              <input
                 id="email"
                 name="email"
                 type="email"
                 autoComplete="email"
                 required
+                className="mt-1 block w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500"
                 value={formData.email}
                 onChange={handleChange}
-                className="mt-1"
-                disabled={loading}
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300">
                 Password
               </label>
-              <Input
+              <input
                 id="password"
                 name="password"
                 type="password"
                 autoComplete="new-password"
                 required
+                className="mt-1 block w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500"
                 value={formData.password}
                 onChange={handleChange}
-                className="mt-1"
-                disabled={loading}
               />
             </div>
             <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-300">
                 Phone number (optional)
               </label>
-              <Input
+              <input
                 id="phone"
                 name="phone"
                 type="tel"
+                className="mt-1 block w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500"
                 value={formData.phone}
                 onChange={handleChange}
-                className="mt-1"
-                disabled={loading}
               />
             </div>
           </div>
+
+          {error && (
+            <div className="text-red-500 text-sm text-center">{error}</div>
+          )}
+
           <div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               {loading ? 'Creating account...' : 'Sign up'}
-            </Button>
+            </button>
           </div>
         </form>
       </div>

@@ -9,6 +9,26 @@ interface CallMetrics {
     ttfb: number;      // Time to First Byte
     totalLatency: number;
     sessionId: string;
+    provider?: string;
+    model?: string;
+    language?: string;
+}
+
+interface SessionSummary {
+    sessionId: string;
+    totalCalls: number;
+    averageEOUDelay: number;
+    averageTTFT: number;
+    averageTTFB: number;
+    averageLatency: number;
+    timestamp: string;
+    provider?: string;
+    model?: string;
+    language?: string;
+    minLatency: number;
+    maxLatency: number;
+    callsUnder2s: number;
+    callsOver2s: number;
 }
 
 export class MetricsService {
@@ -22,13 +42,12 @@ export class MetricsService {
     }
 
     private initializeWorkbook() {
-        // Create logs directory if it doesn't exist
+   
         const logDir = path.dirname(this.metricsLogPath);
         if (!fs.existsSync(logDir)) {
             fs.mkdirSync(logDir, { recursive: true });
         }
 
-        // Create or load workbook
         if (fs.existsSync(this.metricsLogPath)) {
             this.workbook = XLSX.readFile(this.metricsLogPath);
             this.worksheet = this.workbook.Sheets['Call Metrics'];
@@ -54,9 +73,13 @@ export class MetricsService {
         return data.filter(metric => metric.sessionId === sessionId);
     }
 
-    getSessionSummary(sessionId: string) {
+    getSessionSummary(sessionId: string): SessionSummary | null {
         const metrics = this.getSessionMetrics(sessionId);
         if (metrics.length === 0) return null;
+
+        const latencies = metrics.map(m => m.totalLatency);
+        const callsUnder2s = latencies.filter(l => l <= 2000).length;
+        const callsOver2s = latencies.filter(l => l > 2000).length;
 
         return {
             sessionId,
@@ -64,8 +87,15 @@ export class MetricsService {
             averageEOUDelay: this.calculateAverage(metrics.map(m => m.eouDelay)),
             averageTTFT: this.calculateAverage(metrics.map(m => m.ttft)),
             averageTTFB: this.calculateAverage(metrics.map(m => m.ttfb)),
-            averageLatency: this.calculateAverage(metrics.map(m => m.totalLatency)),
-            timestamp: new Date().toISOString()
+            averageLatency: this.calculateAverage(latencies),
+            minLatency: Math.min(...latencies),
+            maxLatency: Math.max(...latencies),
+            callsUnder2s,
+            callsOver2s,
+            timestamp: new Date().toISOString(),
+            provider: metrics[0].provider,
+            model: metrics[0].model,
+            language: metrics[0].language
         };
     }
 

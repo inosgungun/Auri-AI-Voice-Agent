@@ -1,17 +1,23 @@
+'use client';
 import { Sidebar } from '@/components/dashboard/Sidebar';
-import { authService } from '@/lib/auth';
-import { redirect } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
-export default async function DashboardLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await authService.getSession();
+  const { getSession } = useAuth();
+  const router = useRouter();
 
-  if (!session) {
-    redirect('/login');
-  }
+  useEffect(() => {
+    const session = getSession();
+    if (!session) {
+      router.push('/login');
+    }
+  }, [getSession, router]);
 
   return (
     <div className="flex min-h-screen">

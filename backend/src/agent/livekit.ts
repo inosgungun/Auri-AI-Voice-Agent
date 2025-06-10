@@ -1,4 +1,4 @@
-import { Room, RoomServiceClient, WebhookReceiver } from 'livekit-server-sdk';
+import { Room, RoomServiceClient, WebhookReceiver, DataPacket_Kind } from 'livekit-server-sdk';
 import { STTService } from './stt';
 import { LLMService } from './llm';
 import { TTSService } from './tts';
@@ -11,6 +11,7 @@ export class LiveKitAgent {
     private tts: TTSService;
     private metrics: MetricsService;
     private activeRooms: Map<string, Room>;
+    private processingPromises: Map<string, Promise<void>>;
 
     constructor(
         apiKey: string,
@@ -26,6 +27,7 @@ export class LiveKitAgent {
         this.tts = tts;
         this.metrics = metrics;
         this.activeRooms = new Map();
+        this.processingPromises = new Map();
     }
 
     async handleWebhook(payload: string, auth: string) {
@@ -64,45 +66,91 @@ export class LiveKitAgent {
 
     private async handleTrackPublished(room: Room, participant: any, track: any) {
         if (track.kind === 'audio') {
+            const sessionId = room.name;
             const startTime = Date.now();
+            let ttft = 0;
+            let ttfb = 0;
+
             try {
-                // 1. Convert audio to text
-                const audioBuffer = await this.getAudioBuffer(track);
-                const text = await this.stt.transcribe(audioBuffer);
-                
-                // 2. Generate response using LLM
-                const response = await this.llm.generateResponse(text);
-                
-                // 3. Convert response to speech
-                const audioResponse = await this.tts.synthesize(response);
+      
+                if (this.processingPromises.has(sessionId)) {
+                    await this.processingPromises.get(sessionId);
+                }
 
-                // Log metrics
-                const endTime = Date.now();
-                this.metrics.logMetrics({
-                    timestamp: new Date().toISOString(),
-                    sessionId: room.name,
-                    eouDelay: endTime - startTime,
-                    ttft: 0, // To be implemented based on LLM response timing
-                    ttfb: 0, // To be implemented based on first byte timing
-                    totalLatency: endTime - startTime
-                });
+                const processingPromise = (async () => {
+     
+                    const audioBuffer = await this.getAudioBuffer(track);
+                    const text = await this.stt.listen(audioBuffer);
 
-                // Send audio response back to the room
-                await this.sendAudioResponse(room, audioResponse);
+                    if (!text) {
+                        console.error('Failed to transcribe audio');
+                        return;
+                    }
+
+                    const llmStartTime = Date.now();
+                    const response = await this.llm.generateResponse(text);
+                    ttft = Date.now() - llmStartTime;
+                    
+                    const ttsStartTime = Date.now();
+                    const audioResponse = await this.tts.synthesize(response);
+                    ttfb = Date.now() - ttsStartTime;
+
+                    const endTime = Date.now();
+                    this.metrics.logMetrics({
+                        timestamp: new Date().toISOString(),
+                        sessionId,
+                        eouDelay: endTime - startTime,
+                        ttft,
+                        ttfb,
+                        totalLatency: endTime - startTime
+                    });
+
+                    await this.sendAudioResponse(room, audioResponse);
+                })();
+
+                this.processingPromises.set(sessionId, processingPromise);
+                await processingPromise;
             } catch (error) {
                 console.error('Error processing audio:', error);
+            } finally {
+                this.processingPromises.delete(sessionId);
             }
         }
     }
 
     private async getAudioBuffer(track: any): Promise<Buffer> {
-        // Implementation depends on how LiveKit provides audio data
-        // This is a placeholder
-        return Buffer.from([]);
+        try {
+            const audioData = await track.getAudioData();
+            
+            const buffer = Buffer.from(audioData);
+            
+            if (!buffer || buffer.length === 0) {
+                throw new Error('Empty audio buffer received');
+            }
+
+            return buffer;
+        } catch (error) {
+            console.error('Error getting audio buffer:', error);
+            throw new Error('Failed to process audio data');
+        }
     }
 
     private async sendAudioResponse(room: Room, audioBuffer: Buffer) {
-        // Implementation depends on how to send audio back to LiveKit
-        // This is a placeholder
+        try {
+ 
+            const audioData = new Uint8Array(audioBuffer);
+
+            await this.roomService.sendData(
+                room.name,
+                audioData,
+                DataPacket_Kind.RELIABLE
+            );
+
+            const duration = audioBuffer.length / (16000 * 2);
+            await new Promise(resolve => setTimeout(resolve, duration * 1000));
+        } catch (error) {
+            console.error('Error sending audio response:', error);
+            throw new Error('Failed to send audio response');
+        }
     }
 } 

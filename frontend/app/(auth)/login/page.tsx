@@ -10,38 +10,45 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const { login } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     try {
       await login(email, password);
       router.push('/dashboard');
-    } catch (error) {
-      console.error('Login failed:', error);
+    } catch (err) {
+      console.error('Login failed:', err);
+      setError('Invalid email or password.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-8">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[#1a1a1a]">
+      <div className="w-full max-w-md space-y-8 bg-[#2a2a2a] p-8 rounded-xl shadow-lg">
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Sign in to your account</h2>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
+          <h2 className="text-3xl font-bold text-white">Sign in to your account</h2>
+          <p className="mt-2 text-gray-400">
             Or{' '}
-            <Link href="/signup" className="font-medium text-purple-600 hover:text-purple-500 dark:text-purple-400">
+            <Link
+              href="/signup"
+              className="font-medium text-purple-400 hover:text-purple-300 underline"
+            >
               create a new account
             </Link>
           </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+        <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300">
                 Email address
               </label>
               <Input
@@ -52,11 +59,11 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1"
+                className="mt-1 bg-[#333] text-white border border-gray-600 focus:border-purple-500"
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300">
                 Password
               </label>
               <Input
@@ -67,12 +74,16 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1"
+                className="mt-1 bg-[#333] text-white border border-gray-600 focus:border-purple-500"
               />
             </div>
           </div>
           <div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full bg-purple-600 hover:bg-purple-500 text-white"
+              disabled={loading}
+            >
               {loading ? 'Signing in...' : 'Sign in'}
             </Button>
           </div>

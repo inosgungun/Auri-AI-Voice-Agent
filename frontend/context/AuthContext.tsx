@@ -22,6 +22,7 @@ interface AuthContextType {
     signup: (userData: SignupData) => Promise<void>;
     logout: () => void;
     updateProfile: (updates: Partial<User>) => Promise<void>;
+    getSession: () => any;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -56,8 +57,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(updatedUser);
     };
 
+    const getSession = () => {
+        return authService.getSession();
+    };
+
     return (
-        <AuthContext.Provider value={{ user, login, signup, logout, updateProfile }}>
+        <AuthContext.Provider value={{ user, login, signup, logout, updateProfile, getSession }}>
             {children}
         </AuthContext.Provider>
     );

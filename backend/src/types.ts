@@ -110,3 +110,11 @@ declare module 'groq' {
         };
     }
 } 
+
+export interface DeepgramTranscriptResult {
+  results?: {
+    alternatives?: {
+      transcript?: string;
+    }[];
+  }[];
+}
